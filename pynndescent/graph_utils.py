@@ -170,8 +170,9 @@ def adjacency_matrix_representation(neighbor_indices, neighbor_distances):
         (neighbor_indices.shape[0], neighbor_indices.shape[0]), dtype=np.float32
     )
 
-    # Preserve any distance 0 points
-    neighbor_distances[neighbor_distances == 0.0] = FLOAT32_EPS
+    # Preserve any distance 0 points, and the slightly negative distances rounding
+    # can give identical points
+    neighbor_distances[neighbor_distances <= 0.0] = FLOAT32_EPS
 
     result.row = np.repeat(
         np.arange(neighbor_indices.shape[0], dtype=np.int32), neighbor_indices.shape[1]

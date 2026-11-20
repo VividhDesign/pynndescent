@@ -1638,8 +1638,11 @@ class NNDescent:
                         self.diversify_prob,
                     )
 
-        # Preserve any distance 0 points
-        diversified_data[diversified_data == 0.0] = FLOAT32_EPS
+        # Preserve any distance 0 points. Rounding can also leave the distance
+        # between identical points just below zero (alternative_dot gives about
+        # -1.7e-7 for some vectors), and the union below drops an edge present in
+        # one direction only unless its distance is positive.
+        diversified_data[diversified_data <= 0.0] = FLOAT32_EPS
 
         # Union of forward and reverse edges, without self loops, degree pruned.
         # (The forward rows are already diversified; a further "reverse"

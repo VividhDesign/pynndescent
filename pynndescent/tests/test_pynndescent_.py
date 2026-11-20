@@ -209,6 +209,35 @@ def test_neighbor_graph_has_single_self_loop(nn_data, seed, metric, use_init_gra
         assert np.unique(row).shape[0] == row.shape[0]
 
 
+@pytest.mark.parametrize("metric", ["cosine", "dot"])
+def test_duplicate_rows_stay_reachable(metric):
+    # Rounding can leave the alternative_dot distance between identical rows just
+    # below zero; the search graph's union of forward and reverse edges used to
+    # drop such edges, so most copies of the vector had no incoming edge.
+    from pynndescent.distances import alternative_dot
+
+    rng = np.random.default_rng(0)
+    for _ in range(1000):
+        base = rng.standard_normal(32).astype(np.float32)
+        unit = normalize(base[None])[0]
+        if alternative_dot(unit, unit) < 0:
+            break
+    else:
+        pytest.skip("no row rounds to a negative self-distance on this platform")
+
+    n_copies = 100
+    data = np.vstack(
+        [np.tile(base, (n_copies, 1)), rng.standard_normal((900, 32))]
+    ).astype(np.float32)
+    index = NNDescent(data, metric=metric, n_neighbors=15, random_state=42)
+    index.prepare()
+
+    in_degree = np.bincount(index._search_graph.indices, minlength=data.shape[0])
+    assert np.all(in_degree > 0)
+    indices, _ = index.query(base[None], k=n_copies)
+    assert set(indices[0]) == set(range(n_copies))
+
+
 def test_angular_nn_descent_neighbor_accuracy(nn_data, seed):
     knn_indices, _ = NNDescent(
         nn_data, "cosine", {}, 10, random_state=np.random.RandomState(seed)
